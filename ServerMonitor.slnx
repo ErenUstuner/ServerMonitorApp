@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Monitor.Agent/Monitor.Agent.csproj" />
+  <Project Path="Monitor.Server/Monitor.Server.csproj" />
+  <Project Path="Monitor.Shared/Monitor.Shared.csproj" />
+</Solution>
