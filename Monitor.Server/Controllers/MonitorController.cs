@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Monitor.Server.Data;
 using Monitor.Server.Hubs;
 using Monitor.Server.Models;
 using Monitor.Shared;
