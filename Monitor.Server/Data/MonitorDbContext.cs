@@ -12,5 +12,6 @@ namespace Monitor.Server.Data
 
         // SQLite veritabanında "ServerConfigs" adında bir tablo oluşturulmasını emrediyoruz
         public DbSet<ServerConfig> ServerConfigs { get; set; }
+        public DbSet<GlobalCertificate> GlobalCertificates { get; set; }
     }
 }

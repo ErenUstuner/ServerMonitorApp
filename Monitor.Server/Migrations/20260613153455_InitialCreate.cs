@@ -1,5 +1,4 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -18,12 +17,13 @@ namespace Monitor.Server.Migrations
                     Id = table.Column<int>(type: "INTEGER", nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
                     ServerIp = table.Column<string>(type: "TEXT", nullable: false),
-                    CertificatePath = table.Column<string>(type: "TEXT", nullable: true),
-                    ServiceName = table.Column<string>(type: "TEXT", nullable: true),
-                    TrackRam = table.Column<bool>(type: "INTEGER", nullable: false),
+                    CustomName = table.Column<string>(type: "TEXT", nullable: false),
+                    ServiceName = table.Column<string>(type: "TEXT", nullable: false),
+                    Certificates = table.Column<string>(type: "TEXT", nullable: false),
                     TrackCpu = table.Column<bool>(type: "INTEGER", nullable: false),
+                    TrackRam = table.Column<bool>(type: "INTEGER", nullable: false),
                     TrackDisk = table.Column<bool>(type: "INTEGER", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                    TrackNet = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
