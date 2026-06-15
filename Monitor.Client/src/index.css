@@ -1,1 +1,12 @@
 @import "tailwindcss";
+
+/* 1080p, 2K ve 4K İÇİN OTOMATİK ORANTILI ÖLÇEKLEME */
+@media (min-width: 1536px) {
+  html {
+    /* 1080p ekranda (1920px) = 16px standart boyut
+      2K ekranda (2560px) = ~21.3px 
+      4K ekranda (3840px) = 32px (Her şey tam 2 kat büyür!) 
+    */
+    font-size: calc(100vw / 120);
+  }
+}

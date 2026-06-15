@@ -1,204 +1,121 @@
-import React, { useState } from 'react';
-import { Server, Shield, Activity, Info, Save, X } from 'lucide-react';
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { PlusCircle, Server, X, Activity, Cpu, HardDrive, Database, Loader2, HelpCircle, Network } from 'lucide-react';
 
 const ServerManager = () => {
     const [isOpen, setIsOpen] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    
+    const [customName, setCustomName] = useState("");
+    const [serverIp, setServerIp] = useState("");
+    const [services, setServices] = useState([]);
+    const [hardware, setHardware] = useState({ cpu: true, ram: true, disk: true, net: true });
+    
+    const [status, setStatus] = useState({ type: "", message: "" });
 
-    // Form verilerini tuttuğumuz durum (State)
-    const [formData, setFormData] = useState({
-        serverIp: '',
-        certificatePath: '',
-        serviceName: '',
-        modules: { ram: true, cpu: true, disk: true }
-    });
+    const closeWizardAndReset = () => {
+        if (isSubmitting) return; 
+        setIsOpen(false); setCustomName(""); setServerIp(""); setServices([]);
+        setHardware({ cpu: true, ram: true, disk: true, net: true }); setStatus({ type: "", message: "" });
+    };
 
-    // Kaydet butonuna basıldığında çalışacak fonksiyon
+    const updateListItem = (setter, index, value) => setter(prev => { const newArr = [...prev]; newArr[index] = value; return newArr; });
+    const addListItem = (setter) => setter(prev => [...prev, ""]);
+    const removeListItem = (setter, index) => setter(prev => prev.filter((_, i) => i !== index));
+
     const handleSave = async () => {
-        // Doğrulama: IP/Sunucu adı boş mu?
-        if (!formData.serverIp) {
-            alert("Lütfen Sunucu Adı veya IP Adresi giriniz.");
-            return;
-        }
+        if (!serverIp.trim()) return setStatus({ type: "error", message: "Hostname/IP alanı zorunludur!" });
 
+        setIsSubmitting(true);
         try {
-            const payload = {
-                serverIp: formData.serverIp,
-                certificatePath: formData.certificatePath,
-                serviceName: formData.serviceName,
-                trackRam: formData.modules.ram,
-                trackCpu: formData.modules.cpu,
-                trackDisk: formData.modules.disk
-            };
-
             const response = await fetch("http://localhost:5027/api/monitor/add-server", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    serverIp, customName: customName.trim() || serverIp, 
+                    services: services.filter(s => s.trim() !== ""), 
+                    trackCpu: hardware.cpu, trackRam: hardware.ram, trackDisk: hardware.disk, trackNet: hardware.net
+                })
             });
 
-            // Yanıt başarılıysa...
             if (response.ok) {
-                alert("Başarılı! Sunucu veritabanına eklendi.");
-                setIsOpen(false); 
-                window.location.reload();
-                setFormData({ serverIp: '', certificatePath: '', serviceName: '', modules: { ram: true, cpu: true, disk: true } });
+                setStatus({ type: "success", message: "Başarılı! Sunucu ekleniyor..." });
+                setTimeout(() => { closeWizardAndReset(); window.location.reload(); }, 1500);
             } else {
-                // Yanıt hatalıysa (Örn: Çift kayıt) API'den gelen mesajı alert ile göster
-                const errorData = await response.json();
-                alert(`HATA: ${errorData.message}`);
+                setStatus({ type: "error", message: "İşlem başarısız veya sunucu zaten var." });
+                setIsSubmitting(false);
             }
-        } catch (error) {
-            console.error("Bağlantı Hatası:", error);
-            alert("Merkez sunucuya ulaşılamıyor.");
-        }
+        } catch { setStatus({ type: "error", message: "Bağlantı hatası." }); setIsSubmitting(false); }
     };
 
     return (
-        <div>
-            <div className="flex items-center space-x-3">
-                <button 
-                    onClick={() => setIsOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center transition-all shadow-lg shadow-blue-600/30 active:scale-95"
-                >
-                    <Server className="w-5 h-5 mr-2.5" />
-                    Yeni Sunucu Ekle
-                </button>
-            </div>
+        <div className="relative">
+            <button onClick={() => setIsOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-all shadow-md">
+                <Server className="w-4 h-4" /> Yeni Sunucu Ekle
+            </button>
 
-            {isOpen && (
-                <div className="fixed inset-0 bg-black/75 flex justify-center items-start pt-10 z-50 backdrop-blur-md overflow-hidden relative">
-                    <div className="absolute inset-0 z-0" onClick={() => setIsOpen(false)}></div>
+            {isOpen && createPortal(
+                <div className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm overflow-y-auto">
+                    <div className="bg-slate-800 p-8 md:p-10 rounded-3xl shadow-2xl border border-slate-700 max-w-2xl w-full flex flex-col gap-6 my-8 relative">
+                        {isSubmitting && <div className="absolute inset-0 bg-slate-900/40 z-10 rounded-3xl flex items-center justify-center cursor-not-allowed"></div>}
+                        <button onClick={closeWizardAndReset} disabled={isSubmitting} className="absolute top-6 right-6 p-2 hover:bg-slate-700 rounded-full transition-colors z-20">
+                            <X className="w-6 h-6 text-slate-400" />
+                        </button>
 
-                    <div className="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl w-full max-w-2xl relative z-10 animate-fade-in-down max-h-[90vh] flex flex-col">
-                        
-                        <div className="bg-slate-800 p-5 flex justify-between items-center border-b border-slate-700">
-                            <h2 className="text-xl font-bold text-slate-100 flex items-center">
-                                <Server className="w-6 h-6 mr-2.5 text-blue-400" />
-                                Sunucu Konfigürasyon Sihirbazı
-                            </h2>
-                            <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white rounded-full p-1 hover:bg-slate-700 transition-colors">
-                                <X className="w-6 h-6" />
-                            </button>
-                        </div>
-
-                        <div className="p-6 space-y-6 overflow-y-auto max-h-[70vh] flex-grow scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-slate-800">
-                            
+                        <div className="flex items-center gap-4">
+                            <div className="p-4 bg-blue-500/20 rounded-full border border-blue-500/30"><Server className="w-8 h-8 text-blue-400" /></div>
                             <div>
-                                <label className="flex items-center text-sm font-medium text-slate-300 mb-1">
-                                    Sunucu Adı veya IP Adresi
-                                    <div className="group relative ml-2">
-                                        <Info className="w-4 h-4 text-slate-500 cursor-help" />
-                                        <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-72 bg-slate-800 text-xs text-slate-300 p-2 rounded border border-slate-600 shadow-lg z-20">
-                                            Ajanın kurulu olduğu makinenin adını (Örn: AYS-TEST-PC3) veya IP adresini giriniz.
-                                        </div>
-                                    </div>
+                                <h2 className="text-2xl font-bold text-slate-100">Yeni Sunucu Ekle</h2>
+                                <p className="text-sm text-slate-400 mt-1">Sunucu ve servis bilgilerini yapılandırın.</p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-5 relative z-20">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
+                                Sunucu Takma Adı <span className="text-[10px] bg-slate-700 px-2 py-0.5 rounded text-slate-300">İsteğe Bağlı</span>
+                                    <div className="group relative cursor-pointer"><HelpCircle className="w-4 h-4 text-slate-500"/><div className="hidden group-hover:block absolute left-6 -top-2 w-48 bg-slate-900 text-xs p-2 rounded border border-slate-700 z-50">Ekranda büyük harflerle görünecek takma ad. Boş bırakırsanız Hostname kullanılır.</div></div>
                                 </label>
-                                {/* onChange ile klavyeden girilen değeri state'e kaydediyoruz */}
-                                <input 
-                                    type="text" 
-                                    value={formData.serverIp}
-                                    onChange={(e) => setFormData({...formData, serverIp: e.target.value})}
-                                    className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-blue-500 transition-colors"
-                                    placeholder="Örn: 192.168.1.100"
-                                />
+                                <input disabled={isSubmitting} type="text" value={customName} onChange={(e) => setCustomName(e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl p-3 focus:border-blue-500 outline-none" placeholder="Örn: Ankara Veri Merkezi veya Microsoft Sunucuları" />                            </div>
+
+                            <div className="flex flex-col gap-2">
+                                <label className="text-sm font-bold text-slate-300 flex items-center gap-2">Hostname veya IP <span className="text-[10px] bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded">Zorunlu</span></label>                                <input disabled={isSubmitting} type="text" value={serverIp} onChange={(e) => setServerIp(e.target.value)} className="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl p-3 focus:border-blue-500 outline-none" placeholder="Örn: dc01.com / 10.20.30.40" />
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="flex items-center text-sm font-medium text-slate-300 mb-1">
-                                        Sertifika Yolu / URL
-                                        <div className="group relative ml-2">
-                                            <Shield className="w-4 h-4 text-slate-500 cursor-help" />
-                                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-72 bg-slate-800 text-xs text-slate-300 p-2 rounded border border-slate-600 shadow-lg z-20">
-                                                Dosya yolu (C:\cert.pfx) veya uzak web adresi (https://medas.gov.tr) girebilirsiniz.
-                                            </div>
-                                        </div>
-                                    </label>
-                                    <input 
-                                        type="text" 
-                                        value={formData.certificatePath}
-                                        onChange={(e) => setFormData({...formData, certificatePath: e.target.value})}
-                                        className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
-                                        placeholder="C:\Certs\site.pfx"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="flex items-center text-sm font-medium text-slate-300 mb-1">
-                                        İzlenecek Servis Adı
-                                        <div className="group relative ml-2">
-                                            <Activity className="w-4 h-4 text-slate-500 cursor-help" />
-                                            <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block w-72 bg-slate-800 text-xs text-slate-300 p-2 rounded border border-slate-600 shadow-lg z-20">
-                                                Windows Services ekranındaki "Hizmet Adı" kısmını tam olarak yazın. Örn: W3SVC
-                                            </div>
-                                        </div>
-                                    </label>
-                                    <input 
-                                        type="text" 
-                                        value={formData.serviceName}
-                                        onChange={(e) => setFormData({...formData, serviceName: e.target.value})}
-                                        className="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-blue-500"
-                                        placeholder="Örn: W3SVC"
-                                    />
+                            <div className="flex flex-col gap-3 p-5 bg-slate-900/50 rounded-2xl border border-slate-700/50">
+                                    <label className="text-sm font-bold text-slate-300">Sunucuda İzlenecek Donanım Metrikleri</label>                                <div className="grid grid-cols-4 gap-4 mt-1">
+                                    <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={hardware.cpu} onChange={(e) => setHardware({...hardware, cpu: e.target.checked})} className="w-4 h-4 accent-blue-500" /><span className="text-sm text-slate-400"><Cpu className="w-3 h-3 inline mr-1"/> CPU</span></label>
+                                    <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={hardware.ram} onChange={(e) => setHardware({...hardware, ram: e.target.checked})} className="w-4 h-4 accent-blue-500" /><span className="text-sm text-slate-400"><HardDrive className="w-3 h-3 inline mr-1"/> RAM</span></label>
+                                    <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={hardware.disk} onChange={(e) => setHardware({...hardware, disk: e.target.checked})} className="w-4 h-4 accent-blue-500" /><span className="text-sm text-slate-400"><Database className="w-3 h-3 inline mr-1"/> Disk</span></label>
+                                    <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={hardware.net} onChange={(e) => setHardware({...hardware, net: e.target.checked})} className="w-4 h-4 accent-blue-500" /><span className="text-sm text-slate-400"><Network className="w-3 h-3 inline mr-1"/> Ağ (Net)</span></label>
                                 </div>
                             </div>
 
-                            <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 shadow-inner">
-                                <h3 className="text-sm font-medium text-slate-300 mb-3 uppercase font-mono tracking-wider">İzlenecek Donanım Modülleri</h3>
-                                <div className="flex space-x-6">
-                                    <label className="flex items-center cursor-pointer group">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={formData.modules.ram}
-                                            onChange={(e) => setFormData({...formData, modules: {...formData.modules, ram: e.target.checked}})}
-                                            className="form-checkbox h-5 w-5 text-blue-500 rounded bg-slate-900 border-slate-700 transition-colors group-hover:border-blue-500" 
-                                        />
-                                        <span className="ml-2 text-slate-300 group-hover:text-white transition-colors">RAM</span>
-                                    </label>
-                                    <label className="flex items-center cursor-pointer group">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={formData.modules.cpu}
-                                            onChange={(e) => setFormData({...formData, modules: {...formData.modules, cpu: e.target.checked}})}
-                                            className="form-checkbox h-5 w-5 text-blue-500 rounded bg-slate-900 border-slate-700 transition-colors group-hover:border-blue-500" 
-                                        />
-                                        <span className="ml-2 text-slate-300 group-hover:text-white transition-colors">CPU</span>
-                                    </label>
-                                    <label className="flex items-center cursor-pointer group">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={formData.modules.disk}
-                                            onChange={(e) => setFormData({...formData, modules: {...formData.modules, disk: e.target.checked}})}
-                                            className="form-checkbox h-5 w-5 text-blue-500 rounded bg-slate-900 border-slate-700 transition-colors group-hover:border-blue-500" 
-                                        />
-                                        <span className="ml-2 text-slate-300 group-hover:text-white transition-colors">Disk</span>
-                                    </label>
-                                </div>
+                            <div className="flex flex-col gap-3">
+                                    <label className="text-sm font-bold text-slate-300 flex items-center gap-2">
+                                        <Activity className="w-4 h-4"/> Kontrol Edilecek Servisler
+                                    <div className="group relative cursor-pointer"><HelpCircle className="w-4 h-4 text-slate-500"/><div className="hidden group-hover:block absolute left-6 -top-2 w-56 bg-slate-900 text-xs p-2 rounded border border-slate-700 z-50">Görev Yöneticisinde "Hizmetler" sekmesinde yazan kod adını girmelisiniz. (Örn: 'Windows Time' yerine 'w32time' yazılır)</div></div>
+                                </label>
+                                {services.map((svc, index) => (
+                                    <div key={`svc-${index}`} className="flex gap-2">
+                                        <input type="text" value={svc} onChange={(e) => updateListItem(setServices, index, e.target.value)} className="flex-1 bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl p-3 focus:border-blue-500 outline-none" placeholder="Servis Adı (Örn: w32time)" />
+                                        <button onClick={() => removeListItem(setServices, index)} className="px-4 bg-rose-500/10 text-rose-400 rounded-xl"><X className="w-5 h-5"/></button>
+                                    </div>
+                                ))}
+                                <button onClick={() => addListItem(setServices)} className="text-left text-sm text-blue-400 font-bold py-1 w-fit">+ Yeni Servis Ekle</button>
                             </div>
-
                         </div>
 
-                        <div className="bg-slate-800 p-5 flex justify-end space-x-3 border-t border-slate-700 mt-auto">
-                            <button 
-                                onClick={() => setIsOpen(false)}
-                                className="px-5 py-2.5 rounded-xl text-slate-300 hover:bg-slate-700 hover:text-white font-medium transition-colors"
-                            >
-                                İptal
-                            </button>
-                            {/* Kaydet butonuna yazdığımız handleSave metodunu bağlıyoruz */}
-                            <button 
-                                onClick={handleSave}
-                                className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-semibold flex items-center transition-all shadow-lg shadow-blue-500/20 active:scale-95"
-                            >
-                                <Save className="w-5 h-5 mr-2" />
-                                Sunucuyu Ekle ve İzlemeye Başla
+                        {status.message && (<div className={`text-sm font-bold p-4 rounded-xl text-center relative z-20 ${status.type === "success" ? "bg-emerald-500/20 text-emerald-400" : "bg-rose-500/20 text-rose-400"}`}>{status.message}</div>)}
+
+                        <div className="flex gap-4 pt-4 border-t border-slate-700 relative z-20">
+                            <button onClick={handleSave} disabled={isSubmitting} className="flex flex-1 justify-center items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold py-4 rounded-xl transition-all shadow-lg disabled:opacity-50">
+                                {isSubmitting ? <><Loader2 className="w-5 h-5 animate-spin" /> Ekleniyor...</> : "Sunucuyu Kaydet ve İzlemeye Başla"}
                             </button>
                         </div>
-
                     </div>
-                </div>
+                </div>, document.body
             )}
         </div>
     );
 };
-
 export default ServerManager;

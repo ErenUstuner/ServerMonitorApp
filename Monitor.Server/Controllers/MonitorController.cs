@@ -206,25 +206,59 @@ namespace Monitor.Server.Controllers
             return Ok();
         }
 
+        // YENİ: Sertifika Yolu/URL Güncelleme Endpoints'i
+        [HttpPut("update-certificate")]
+        public async Task<IActionResult> UpdateCertificate([FromBody] UpdateCertDto dto)
+        {
+            var cert = await _context.GlobalCertificates.FindAsync(dto.Id);
+            if (cert == null) return NotFound();
+
+            // CS8601 Null başvuru uyarısını çözmek için ?? eklendi
+            cert.PathOrUrl = dto.Path ?? string.Empty;
+
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        // Uyarı vermemesi için Path string'i nullable (?) yapıldı
+        public class UpdateCertDto
+        {
+            public int Id { get; set; }
+            public string? Path { get; set; }
+        }
+
+        // GÜNCELLEME: Senin ORİJİNAL yapına (ServerConfigs) uygun güncelleme metodu
         [HttpPut("update-server")]
         public async Task<IActionResult> UpdateServer([FromBody] ServerUpdateDto config)
         {
             var existing = await _context.ServerConfigs.FirstOrDefaultAsync(s => s.ServerIp == config.ServerIp);
             if (existing == null) return NotFound();
+
+            // Senin orijinal mantığın: Servisleri virgülle yan yana ekle
             existing.ServiceName = config.Services != null ? string.Join(",", config.Services.Where(s => !string.IsNullOrWhiteSpace(s))) : "";
-            existing.TrackCpu = config.TrackCpu; existing.TrackRam = config.TrackRam; existing.TrackDisk = config.TrackDisk; existing.TrackNet = config.TrackNet;
-            await _context.SaveChangesAsync(); return Ok();
+            existing.TrackCpu = config.TrackCpu;
+            existing.TrackRam = config.TrackRam;
+            existing.TrackDisk = config.TrackDisk;
+            existing.TrackNet = config.TrackNet;
+
+            // YENİ: Arayüzden gelen Takma Ad (CustomName) Güncellemesi
+            existing.CustomName = config.CustomName;
+
+            await _context.SaveChangesAsync();
+            return Ok();
         }
 
+        // Yanlışlıkla silinen (CS0103 hatası veren) Log metodu geri eklendi
         private void WriteLog(string message)
         {
             try { Directory.CreateDirectory(Path.GetDirectoryName(_logPath)!); System.IO.File.AppendAllText(_logPath, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}\n"); } catch { }
         }
-    }
+    } // CS1513 Hatasını çözen Controller sınıfının bitiş parantezi
 
     public class ServerUpdateDto
     {
-        public string ServerIp { get; set; } = string.Empty; public string CustomName { get; set; } = string.Empty;
+        public string ServerIp { get; set; } = string.Empty;
+        public string CustomName { get; set; } = string.Empty; // Sadece bir tane CustomName bıraktık
         public List<string> Services { get; set; } = new();
         public bool TrackCpu { get; set; }
         public bool TrackRam { get; set; }
